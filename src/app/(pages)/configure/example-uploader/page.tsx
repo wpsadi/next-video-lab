@@ -22,11 +22,10 @@ export default function Home() {
 				headers={{
 					"x-uploadthing-token": UPLOADTHING_TOKEN,
 				}}
-				onClientUploadComplete={( res ) => {
-				    // Do something with the response
-				    console.log( "Files: ", res );
-				    alert( "Upload Completed" );
-
+				onClientUploadComplete={(res) => {
+					// Do something with the response
+					console.log("Files: ", res);
+					alert("Upload Completed");
 				}}
 				onUploadError={(error: Error) => {
 					// Do something with the error.
