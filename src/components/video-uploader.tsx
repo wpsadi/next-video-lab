@@ -8,14 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-
+import { useVideoConfigStore } from "@/store/video-config";
+import { uploadFiles } from "@/utils/uploadthing";
 import {
 	chunkVideoFile,
 	type ProcessedVideo,
 	validateVideoFile,
 } from "@/utils/video-processing";
-import { useVideoConfigStore } from "@/store/video-config";
-import { uploadFiles } from "@/utils/uploadthing";
 
 interface VideoUploaderProps {
 	onUploadComplete?: (videoUrl: string) => void;
@@ -87,12 +86,14 @@ export default function VideoUploader({
 			for (let i = 0; i < processedVideo.chunks.length; i++) {
 				const _chunk = processedVideo.chunks[i];
 
-				
-
 				// conver this chunk to a File object
-				const chunkFile = new File([_chunk.blob], `${selectedVideo.name}-chunk-${i}.mp4`, {
-					type: selectedVideo.type,
-				});
+				const chunkFile = new File(
+					[_chunk.blob],
+					`${selectedVideo.name}-chunk-${i}.mp4`,
+					{
+						type: selectedVideo.type,
+					},
+				);
 
 				// Simulate upload delay
 				await uploadFiles("imageUploader", { files: [chunkFile] });

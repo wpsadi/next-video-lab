@@ -58,7 +58,7 @@ export const defaultVideoConfig: VideoConfig = {
 		"video/x-ms-wmv",
 	],
 	ALLOWED_EXTENSIONS: [".mp4", ".webm", ".mov", ".avi", ".wmv"],
-	CHUNK_SIZE: 1* 1024 * 1024,
+	CHUNK_SIZE: 1 * 1024 * 1024,
 	HLS_SEGMENT_DURATION: 10,
 	HLS_PLAYLIST_TYPE: "VOD",
 	VIDEO_QUALITIES: [
