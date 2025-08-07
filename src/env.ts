@@ -6,6 +6,7 @@ export const env = createEnv({
 		NODE_ENV: z
 			.enum(["development", "production", "test"])
 			.default("development"),
+
 	},
 
 	/**
@@ -16,13 +17,16 @@ export const env = createEnv({
 
 	client: {
 		// NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
+		NEXT_PUBLIC_VERCEL_URL: z.string().default("http://localhost:3000"),
 	},
 
 	/**
 	 * What object holds the environment variables at runtime. This is usually
 	 * `process.env` or `import.meta.env`.
 	 */
-	runtimeEnv: {},
+	runtimeEnv: {
+		NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL,
+	},
 
 	/**
 	 * By default, this library will feed the environment variables directly to

@@ -37,6 +37,10 @@ const data = {
 					title: "Example-Uploader",
 					url: "/configure/example-uploader",
 				},
+				{
+					title: "Example Custom Uploader",
+					url: "/configure/example-custom-uploader",
+				},
 			],
 		},
 		{

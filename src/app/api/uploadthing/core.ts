@@ -16,7 +16,19 @@ export const ourFileRouter = {
 		},
 	})
 		// Set permissions and file types for this FileRoute
-
+		.middleware(async ({ req }) => {
+			// This code runs on your server before the upload
+			// You can access the request object and perform any necessary checks
+			const token = req.headers.get("x-uploadthing-token");
+			if (!token) {
+				throw new Error("No token provided");
+			}
+			return { token };
+		})
+		.onUploadError(async ({ error,  }) => {
+			console.error("Upload error:", error);
+			// You can also access the request object here
+		})
 		.onUploadComplete(async ({ metadata, file, req }) => {
 			console.log("File uploaded:", file, req);
 			// This code RUNS ON YOUR SERVER after upload

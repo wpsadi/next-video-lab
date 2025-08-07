@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { createRouteHandler } from "uploadthing/next";
 import { ourFileRouter } from "./core";
+import { env } from "@/env";
 
 // Create a base handler without config
 const baseHandler = (token: string) =>
@@ -11,7 +12,8 @@ const baseHandler = (token: string) =>
 			token: token, // Pass the token to the config
 			isDev: process.env.NODE_ENV === "development",
 			logLevel: "All",
-			callbackUrl: `/api/uploadthing?token=${token}`, // Use the token in the callback URL
+			// callbackUrl:"/api/uploadthing", // Use a static callback URL for development
+			callbackUrl: `${env.NEXT_PUBLIC_VERCEL_URL}/api/uploadthing`, // Use the token in the callback URL
 		},
 		// config will be injected per request
 	});
