@@ -1,40 +1,38 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import type { NextRequest } from "next/server";
+import { videoStorage } from "@/utils/video-storage";
 
 export async function GET(req: NextRequest) {
 	try {
-		const filePath = req.nextUrl.searchParams.get("path")?.split("/") || [];
-		const fullPath = path.join(process.cwd(), "public", "hls", ...filePath);
-
-		// Check if file exists
-		const fileStats = await fs.stat(fullPath);
-		if (!fileStats.isFile()) {
-			return new Response("File not found", { status: 404 });
+		const pathParam = req.nextUrl.searchParams.get("path");
+		if (!pathParam) {
+			return new Response("Path parameter is required", { status: 400 });
 		}
 
-		// Read the file
-		const fileContent = await fs.readFile(fullPath);
+		// Parse the path to get videoId and filename
+		const pathParts = pathParam.split("/");
+		if (pathParts.length < 2) {
+			return new Response("Invalid path format", { status: 400 });
+		}
 
-		// Determine content type
-		const ext = path.extname(fullPath).toLowerCase();
-		let contentType = "application/octet-stream";
+		const videoId = pathParts[0];
+		const filename = pathParts[1];
 
-		if (ext === ".m3u8") {
-			contentType = "application/vnd.apple.mpegurl";
-		} else if (ext === ".ts") {
-			contentType = "video/mp2t";
+		// Get the file from storage
+		const file = await videoStorage.getHLSFile(videoId, filename);
+
+		if (!file) {
+			return new Response("File not found", { status: 404 });
 		}
 
 		// Set appropriate headers
 		const headers = new Headers();
-		headers.set("Content-Type", contentType);
+		headers.set("Content-Type", file.contentType);
 		headers.set("Cache-Control", "no-cache");
 		headers.set("Access-Control-Allow-Origin", "*");
 		headers.set("Access-Control-Allow-Methods", "GET");
 		headers.set("Access-Control-Allow-Headers", "Range");
 
-		return new Response(new Uint8Array(fileContent), {
+		return new Response(new Uint8Array(file.content), {
 			status: 200,
 			headers,
 		});

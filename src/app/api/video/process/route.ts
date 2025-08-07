@@ -1,9 +1,11 @@
 import { exec } from "node:child_process";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { type VideoStorageFile, videoStorage } from "@/utils/video-storage";
 
 const execAsync = promisify(exec);
 
@@ -18,11 +20,10 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Create output directory
+		// Create output directory in temp folder
 		const outputDir = path.join(
-			process.cwd(),
-			"public",
-			"hls",
+			os.tmpdir(),
+			"hls-processing",
 			fileName.replace(/\.[^/.]+$/, ""),
 		);
 		await fs.mkdir(outputDir, { recursive: true });
@@ -70,11 +71,42 @@ export async function POST(request: NextRequest) {
 		// Execute FFmpeg
 		await execAsync(ffmpegCommand);
 
-		// Clean up input file
-		await fs.unlink(inputVideoPath);
+		// Read generated HLS files and prepare them for storage
+		const hlsFiles = await fs.readdir(outputDir);
+		const storageFiles: VideoStorageFile[] = [];
 
-		// Return the HLS URL
-		const hlsUrl = `/api/hls/${fileName.replace(/\.[^/.]+$/, "")}/playlist.m3u8`;
+		for (const file of hlsFiles) {
+			if (file.endsWith(".m3u8") || file.endsWith(".ts")) {
+				const filePath = path.join(outputDir, file);
+				const fileContent = await fs.readFile(filePath);
+
+				// Determine content type
+				const ext = path.extname(file).toLowerCase();
+				let contentType = "application/octet-stream";
+
+				if (ext === ".m3u8") {
+					contentType = "application/vnd.apple.mpegurl";
+				} else if (ext === ".ts") {
+					contentType = "video/mp2t";
+				}
+
+				storageFiles.push({
+					filename: file,
+					content: fileContent,
+					contentType,
+				});
+			}
+		}
+
+		// Store HLS files using our storage utility
+		const videoId = fileName.replace(/\.[^/.]+$/, "");
+		await videoStorage.storeHLSFiles(videoId, storageFiles);
+
+		// Clean up temporary processing directory
+		await fs.rm(outputDir, { recursive: true, force: true });
+
+		// Return the HLS URL pointing to our API endpoint
+		const hlsUrl = `/api/hls?path=${encodeURIComponent(videoId)}/playlist.m3u8`;
 
 		console.log("HLS processing completed successfully. URL:", hlsUrl);
 
