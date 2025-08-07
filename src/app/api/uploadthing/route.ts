@@ -11,6 +11,7 @@ const baseHandler = (token: string) =>
 			token: token, // Pass the token to the config
 			isDev: process.env.NODE_ENV === "development",
 			logLevel: "All",
+			callbackUrl:"/api/uploadthing?token=" + token, // Use the token in the callback URL
 		},
 		// config will be injected per request
 	});
