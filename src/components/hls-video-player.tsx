@@ -1,5 +1,6 @@
 "use client";
 
+import Hls from "hls.js";
 import {
 	Loader2,
 	Maximize,
@@ -63,6 +64,8 @@ export default function HLSVideoPlayer({
 		const video = videoRef.current;
 		if (!video) return;
 
+		let hls: Hls | null = null;
+
 		const handleLoadStart = () => {
 			setIsLoading(true);
 			onLoadStart?.();
@@ -86,9 +89,42 @@ export default function HLSVideoPlayer({
 			onError?.("Failed to load video");
 		};
 
-		// For HLS support, you would typically use hls.js here
-		// This is a simplified version for demonstration
-		video.src = src;
+		// Setup HLS
+		if (Hls.isSupported() && src.includes(".m3u8")) {
+			hls = new Hls();
+			hls.loadSource(src);
+			hls.attachMedia(video);
+
+			hls.on(Hls.Events.MANIFEST_PARSED, () => {
+				console.log("HLS manifest loaded");
+			});
+
+			hls.on(Hls.Events.ERROR, (_event, data) => {
+				console.error("HLS error:", data);
+				if (data.fatal) {
+					switch (data.type) {
+						case Hls.ErrorTypes.NETWORK_ERROR:
+							console.log("Network error, trying to recover...");
+							hls?.startLoad();
+							break;
+						case Hls.ErrorTypes.MEDIA_ERROR:
+							console.log("Media error, trying to recover...");
+							hls?.recoverMediaError();
+							break;
+						default:
+							console.log("Fatal error, cannot recover");
+							hls?.destroy();
+							break;
+					}
+				}
+			});
+		} else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+			// Safari native HLS support
+			video.src = src;
+		} else {
+			// Fallback for non-HLS videos
+			video.src = src;
+		}
 
 		video.addEventListener("loadstart", handleLoadStart);
 		video.addEventListener("loadeddata", handleLoadedData);
@@ -98,6 +134,9 @@ export default function HLSVideoPlayer({
 		video.addEventListener("error", handleError);
 
 		return () => {
+			if (hls) {
+				hls.destroy();
+			}
 			video.removeEventListener("loadstart", handleLoadStart);
 			video.removeEventListener("loadeddata", handleLoadedData);
 			video.removeEventListener("timeupdate", handleTimeUpdate);

@@ -49,7 +49,7 @@ type VideoConfigStore = {
 };
 
 export const defaultVideoConfig: VideoConfig = {
-	MAX_FILE_SIZE: 50 * 1024 * 1024,
+	MAX_FILE_SIZE: 4 * 1024 * 1024, // 4MB instead of 50MB
 	ALLOWED_VIDEO_TYPES: [
 		"video/mp4",
 		"video/webm",

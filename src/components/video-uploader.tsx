@@ -8,13 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useUploadThingStore } from "@/store/uploadThing.store";
 import { useVideoConfigStore } from "@/store/video-config";
-import { uploadFiles } from "@/utils/uploadthing";
-import {
-	chunkVideoFile,
-	type ProcessedVideo,
-	validateVideoFile,
-} from "@/utils/video-processing";
+import { useUploadThing } from "@/utils/uploadthing";
 
 interface VideoUploaderProps {
 	onUploadComplete?: (videoUrl: string) => void;
@@ -28,14 +24,64 @@ export default function VideoUploader({
 	className = "",
 }: VideoUploaderProps) {
 	const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
-	const [processedVideo, setProcessedVideo] = useState<ProcessedVideo | null>(
-		null,
-	);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [isProcessing, setIsProcessing] = useState(false);
 	const [isUploading, setIsUploading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
+	const { videoConfig } = useVideoConfigStore();
+	const { UPLOADTHING_TOKEN } = useUploadThingStore();
+
+	const { startUpload } = useUploadThing("videoUploader", {
+		onClientUploadComplete: async (res) => {
+			console.log("Upload completed:", res);
+			setIsUploading(false);
+			setIsProcessing(true);
+
+			if (res?.[0] && selectedVideo) {
+				try {
+					// Process video to HLS
+					const processResponse = await fetch("/api/video/process", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({
+							videoUrl: res[0].url,
+							fileName: selectedVideo.name,
+						}),
+					});
+
+					const processResult = await processResponse.json();
+
+					if (processResult.success) {
+						setUploadedVideoUrl(processResult.hlsUrl);
+						onUploadComplete?.(processResult.hlsUrl);
+					} else {
+						throw new Error(processResult.error || "Processing failed");
+					}
+				} catch (err) {
+					const errorMessage =
+						err instanceof Error ? err.message : "Processing failed";
+					setError(errorMessage);
+					onUploadError?.(errorMessage);
+				}
+			}
+			setIsProcessing(false);
+		},
+		onUploadError: (error) => {
+			console.error("Upload error:", error);
+			setError(`Upload failed: ${error.message}`);
+			onUploadError?.(error.message);
+			setIsUploading(false);
+		},
+		onUploadProgress: (progress) => {
+			setUploadProgress(progress);
+		},
+		headers: {
+			"x-uploadthing-token": UPLOADTHING_TOKEN,
+		},
+	});
 
 	const onDrop = useCallback(async (acceptedFiles: File[]) => {
 		const file = acceptedFiles[0];
@@ -43,87 +89,47 @@ export default function VideoUploader({
 
 		setError(null);
 
-		// Validate the video file
-		const validation = validateVideoFile(file);
-		if (!validation.isValid) {
-			setError(validation.error || "Invalid file");
+		// Validate file size (4MB max)
+		if (file.size > 4 * 1024 * 1024) {
+			setError("File size must be less than 4MB");
+			return;
+		}
+
+		// Validate file type
+		if (!file.type.startsWith("video/")) {
+			setError("Please select a valid video file");
 			return;
 		}
 
 		setSelectedVideo(file);
-		setIsProcessing(true);
-
-		try {
-			// Process video into chunks
-			const processed = await chunkVideoFile(file);
-			setProcessedVideo(processed);
-		} catch (err) {
-			setError("Failed to process video file");
-			console.error("Video processing error:", err);
-		} finally {
-			setIsProcessing(false);
-		}
 	}, []);
-	const { videoConfig } = useVideoConfigStore();
 
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
 		accept: {
-			"video/*": videoConfig.ALLOWED_EXTENSIONS,
+			"video/*": [], // Accept all video types; restrict by extension in validation if needed
 		},
 		maxFiles: videoConfig.UPLOAD_CONFIG.maxFileCount,
 		multiple: videoConfig.UPLOAD_CONFIG.multiple,
 	});
-
 	const handleUpload = async () => {
-		if (!processedVideo || !selectedVideo) return;
+		if (!selectedVideo) return;
 
 		setIsUploading(true);
 		setUploadProgress(0);
 
 		try {
-			// Simulate chunked upload process
-			for (let i = 0; i < processedVideo.chunks.length; i++) {
-				const _chunk = processedVideo.chunks[i];
-
-				// conver this chunk to a File object
-				const chunkFile = new File(
-					[_chunk.blob],
-					`${selectedVideo.name}-chunk-${i}.mp4`,
-					{
-						type: selectedVideo.type,
-					},
-				);
-
-				// Simulate upload delay
-				await uploadFiles("imageUploader", { files: [chunkFile] });
-				console.log(`Uploading chunk ${i + 1}/${processedVideo.chunks.length}`);
-
-				// Update progress
-				const progress = ((i + 1) / processedVideo.chunks.length) * 100;
-				setUploadProgress(progress);
-			}
-
-			// Simulate HLS processing
-			await new Promise((resolve) => setTimeout(resolve, 2000));
-
-			// Mock uploaded video URL (in real implementation, this would come from your backend)
-			const mockVideoUrl = `/api/video/stream/${selectedVideo.name.replace(/\.[^/.]+$/, "")}.m3u8`;
-			setUploadedVideoUrl(mockVideoUrl);
-
-			onUploadComplete?.(mockVideoUrl);
+			await startUpload([selectedVideo]);
 		} catch (_err) {
 			const errorMessage = "Upload failed. Please try again.";
 			setError(errorMessage);
 			onUploadError?.(errorMessage);
-		} finally {
 			setIsUploading(false);
 		}
 	};
 
 	const resetUploader = () => {
 		setSelectedVideo(null);
-		setProcessedVideo(null);
 		setUploadProgress(0);
 		setError(null);
 		setUploadedVideoUrl(null);
@@ -201,22 +207,25 @@ export default function VideoUploader({
 						{isProcessing && (
 							<div className="flex items-center gap-2 p-4 border rounded-lg">
 								<Loader2 className="w-4 h-4 animate-spin" />
-								<span>Processing video for chunked upload...</span>
+								<span>Processing video for HLS conversion...</span>
 							</div>
 						)}
 
-						{processedVideo && !isUploading && !uploadedVideoUrl && (
-							<div className="space-y-3">
-								<div className="flex items-center gap-2 text-sm text-muted-foreground">
-									<CheckCircle className="w-4 h-4 text-green-500" />
-									Ready for upload: {processedVideo.totalChunks} chunks
+						{selectedVideo &&
+							!isUploading &&
+							!uploadedVideoUrl &&
+							!isProcessing && (
+								<div className="space-y-3">
+									<div className="flex items-center gap-2 text-sm text-muted-foreground">
+										<CheckCircle className="w-4 h-4 text-green-500" />
+										Ready for upload and HLS processing
+									</div>
+									<Button onClick={handleUpload} className="w-full">
+										<Upload className="w-4 h-4 mr-2" />
+										Upload & Process for HLS
+									</Button>
 								</div>
-								<Button onClick={handleUpload} className="w-full">
-									<Upload className="w-4 h-4 mr-2" />
-									Upload & Process for HLS
-								</Button>
-							</div>
-						)}
+							)}
 
 						{isUploading && (
 							<div className="space-y-3">

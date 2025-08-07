@@ -33,13 +33,36 @@ export const ourFileRouter = {
 			console.log("File uploaded:", file, req);
 			// This code RUNS ON YOUR SERVER after upload
 
-			console.log("file url", file.ufsUrl);
+			console.log("file url", file.url);
 
 			// !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
 			return {
-				fileUrl: file.ufsUrl,
+				fileUrl: file.url,
 				metadata: metadata,
 			};
+		}),
+
+	// Add video uploader
+	videoUploader: f({
+		video: {
+			maxFileSize: "4MB",
+			maxFileCount: 1,
+		},
+	})
+		.middleware(async ({ req }) => {
+			const token = req.headers.get("x-uploadthing-token");
+			if (!token) {
+				throw new Error("No token provided");
+			}
+			return { token };
+		})
+		.onUploadError(async ({ error }) => {
+			console.error("Video upload error:", error);
+		})
+		.onUploadComplete(async ({ metadata, file }) => {
+			console.log("Video upload complete for userId:", metadata.token);
+			console.log("video file url", file.url);
+			return { uploadedBy: metadata.token, fileUrl: file.url };
 		}),
 } satisfies FileRouter;
 
