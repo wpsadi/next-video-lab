@@ -2,11 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
 
-export async function GET(
-	req: NextRequest,
-) {
+export async function GET(req: NextRequest) {
 	try {
-
 		const filePath = req.nextUrl.searchParams.get("path")?.split("/") || [];
 		const fullPath = path.join(process.cwd(), "public", "hls", ...filePath);
 
