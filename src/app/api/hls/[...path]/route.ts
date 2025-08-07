@@ -3,12 +3,12 @@ import path from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-	_request: NextRequest,
-	{ params }: { params: { path: string[] } },
+	req: NextRequest,
 ) {
 	try {
-		const filePath = params.path.join("/");
-		const fullPath = path.join(process.cwd(), "public", "hls", filePath);
+
+		const filePath = req.nextUrl.searchParams.get("path")?.split("/") || [];
+		const fullPath = path.join(process.cwd(), "public", "hls", ...filePath);
 
 		// Check if file exists
 		const fileStats = await fs.stat(fullPath);
