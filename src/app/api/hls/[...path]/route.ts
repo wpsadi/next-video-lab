@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
 	try {
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 		// Check if file exists
 		const fileStats = await fs.stat(fullPath);
 		if (!fileStats.isFile()) {
-			return new NextResponse("File not found", { status: 404 });
+			return new Response("File not found", { status: 404 });
 		}
 
 		// Read the file
@@ -34,12 +34,12 @@ export async function GET(req: NextRequest) {
 		headers.set("Access-Control-Allow-Methods", "GET");
 		headers.set("Access-Control-Allow-Headers", "Range");
 
-		return new NextResponse(fileContent, {
+		return new Response(new Uint8Array(fileContent), {
 			status: 200,
 			headers,
 		});
 	} catch (error) {
 		console.error("Streaming error:", error);
-		return new NextResponse("Internal server error", { status: 500 });
+		return new Response("Internal server error", { status: 500 });
 	}
 }
