@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { createRouteHandler } from "uploadthing/next";
-import { ourFileRouter } from "./core";
 import { env } from "@/env";
+import { ourFileRouter } from "./core";
 
 // Create a base handler without config
 const baseHandler = (token: string) =>

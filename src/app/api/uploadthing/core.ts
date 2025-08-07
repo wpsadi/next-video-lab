@@ -25,7 +25,7 @@ export const ourFileRouter = {
 			}
 			return { token };
 		})
-		.onUploadError(async ({ error,  }) => {
+		.onUploadError(async ({ error }) => {
 			console.error("Upload error:", error);
 			// You can also access the request object here
 		})
